@@ -1,141 +1,78 @@
-# from django.shortcuts import render
-# from rest_framework import viewsets
-#
-# from app.models import Post
-# from app.serializers import PostListSerializer, PostDetailSerializer, PostSerializer
-#
-#
-# class PostViewSet(viewsets.ModelViewSet):
-#     queryset = Post.objects.all()
-#     serializer_class = PostSerializer
-#
-#     def get_serializer_class(self):
-#         if self.action == 'list':
-#             return PostListSerializer
-#         elif self.action == 'retrieve':
-#             return PostDetailSerializer
-#         else:
-#             return PostSerializer
-#
-#     # def perform_create(self, serializer):
-#     #     serializer.save(user=self.request.user)
+from rest_framework import viewsets
 
-
-from datetime import datetime
-
-from django.db.models import F, Count
-from rest_framework import viewsets, mixins, status
-from rest_framework.decorators import action
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet
-from drf_spectacular.utils import extend_schema, OpenApiParameter
-
-from app.models import Profile, Subscription, Post
-from app.permissions import IsAdminOrIfAuthenticatedReadOnly
-
-from app.serializers import (
+from .models import Profile, Post
+from .permissions import IsAdminOrIfAuthenticatedReadOnly
+from .serializers import (
     ProfileSerializer,
-    SubscriptionSerializer,
-    PostSerializer,
-    ProfileDetailsSerializer,
-    PostDetailSerializer,
-    PostListSerializer
+    ProfileDetailSerializer,
+    PostSerializer
 )
+from user.models import User
+from user.serializers import UserSerializer
 
 
-@extend_schema(
-    parameters=[
-        OpenApiParameter(
-            "username",
-            type={"type": "list", "items": {"type": "chars"}},
-            description="Filter by username (ex. ?username=username)"
-        )
-    ]
-)
-class ProfileViewSet(
-    viewsets.ModelViewSet
-):
-    queryset = Profile.objects.all()
-    serializer_class = ProfileSerializer
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
 
     def get_queryset(self):
-        """Allows user to search by username"""
+        email = self.request.query_params.get("email")
+
+        queryset = self.queryset
+
+        if email:
+            queryset = queryset.filter(email__icontains=email)
+
+        return queryset.distinct()
+
+
+class ProfileViewSet(viewsets.ModelViewSet):
+    queryset = Profile.objects.all()
+    serializer_class = ProfileSerializer
+    permission_classes = (IsAdminOrIfAuthenticatedReadOnly, )
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def get_serializer_class(self):
+        if self.action in ["retrieve", "update", "create"]:
+            return ProfileDetailSerializer
+
+        return self.serializer_class
+
+    def get_queryset(self):
         username = self.request.query_params.get("username")
+        first_name = self.request.query_params.get("first_name")
+        last_name = self.request.query_params.get("last_name")
 
         queryset = self.queryset
 
         if username:
-            queryset = queryset.filter(username__icontains=username)
+            queryset = queryset.filter(nickname__icontains=username)
 
-        return queryset.distinct()
+        if first_name:
+            queryset = queryset.filter(first_name__icontains=first_name)
 
-    def get_serializer_class(self):
-        if self.action == "retrieve":
-            return ProfileDetailsSerializer
-        return ProfileSerializer
+        if last_name:
+            queryset = queryset.filter(last_name__icontains=last_name)
 
-
-class SubscribersViewSet(
-    mixins.ListModelMixin,
-    mixins.CreateModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
-):
-    queryset = Subscription.objects.all()
-    serializer_class = SubscriptionSerializer
-
-    def get_queryset(self):
-        return Subscription.objects.filter(subscriber=self.request.user.id)
+        return queryset
 
 
-class TargetsViewSet(
-    mixins.ListModelMixin,
-    mixins.CreateModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
-):
-    queryset = Subscription.objects.all()
-    serializer_class = SubscriptionSerializer
-
-    def get_queryset(self):
-        return Subscription.objects.filter(target=self.request.user.id)
-
-
-@extend_schema(
-    parameters=[
-        OpenApiParameter(
-            "message",
-            type={"type": "list", "items": {"type": "chars"}},
-            description="Filter by contains word in message (ex. ?message=word)"
-        )
-    ]
-)
-class PostViewSet(
-    viewsets.ModelViewSet
-):
+class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
+    permission_classes = [IsAdminOrIfAuthenticatedReadOnly]
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
 
     def get_queryset(self):
-        """Allows user to see only his and followers posts"""
-        subs_id_posts = Subscription.objects.filter(
-            subscriber__id=self.request.user.id
-        ).values_list("id", flat=True)
+        tag = self.request.query_params.get("hashtag")
 
-        message_part = self.request.query_params.get("message")
+        queryset = self.queryset
 
-        queryset = Post.objects.filter(user_profile__in=subs_id_posts)
+        if tag:
+            queryset = queryset.filter(hashtag__icontains=tag)
 
-        if message_part:
-            queryset = queryset.filter(message__icontains=message_part)
-
-        return queryset.distinct()
-
-    def get_serializer_class(self):
-        if self.action == "list":
-            return PostListSerializer
-        if self.action == "retrieve":
-            return PostDetailSerializer
-        return PostSerializer
+        return queryset

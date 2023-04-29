@@ -1,19 +1,15 @@
 from django.urls import path, include
-from rest_framework import routers
+from rest_framework.routers import DefaultRouter
 
-from app.views import (
-    ProfileViewSet,
-    SubscribersViewSet,
-    PostViewSet,
-    TargetsViewSet
-)
+from app.views import UserViewSet, ProfileViewSet, PostViewSet
 
-router = routers.DefaultRouter()
+router = DefaultRouter()
+router.register("users", UserViewSet)
 router.register("profiles", ProfileViewSet)
-router.register("subs", SubscribersViewSet)
 router.register("posts", PostViewSet)
-router.register("targets", TargetsViewSet)
 
-urlpatterns = [path("", include(router.urls))]
+urlpatterns = [
+    path("", include(router.urls)),
+]
 
-app_name = "social"
+app_name = "users"
