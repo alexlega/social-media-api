@@ -34,25 +34,25 @@ This project is a RESTful API for a social media platform built using Django and
 
 1. Clone the repository.
 
-git clone https://github.com/username/social-media-api.git
+    $ git clone https://github.com/username/social-media-api.git
 
 2. Change directory to the project folder.
 
-cd social-media-api
+    $ cd social-media-api
 
 3. Create a virtual environment and activate it.
 
-python -m venv venv
-source venv/bin/activate
+   $ python -m venv venv
+   $ source venv/bin/activate
 
 4. Install the required packages.
 
-pip install -r requirements.txt
+    $ pip install -r requirements.txt
 
 5. Apply database migrations.
 
-python manage.py migrate
+    $ python manage.py migrate
 
 6. Run the development server.
 
-python manage.py runserver
+    $   python manage.py runserver
